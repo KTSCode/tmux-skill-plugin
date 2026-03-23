@@ -19,7 +19,7 @@ A Claude Code skill for controlling CLI applications running in tmux panes. Laun
 
 ```bash
 # Clone the repo
-git clone https://github.com/kylesanclemente/tmux-skill-plugin.git
+git clone https://github.com/KTSCode/tmux-skill-plugin.git
 
 # Copy the skill into your Claude Code skills directory
 cp -r tmux-skill-plugin/skills/tmux ~/.claude/skills/
