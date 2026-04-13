@@ -6,7 +6,10 @@
   "plugins": [
     {
       "name": "tmux-skill",
-      "source": ".",
+      "source": {
+        "source": "github",
+        "repo": "KTSCode/tmux-skill-plugin"
+      },
       "description": "Control CLI applications running in tmux panes - launch programs, send input, capture output, and manage interactive sessions",
       "version": "1.0.0",
       "author": {
