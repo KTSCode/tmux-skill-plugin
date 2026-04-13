@@ -14,6 +14,8 @@ This creates a session named `claude-work` with one window and one pane running 
 
 ### Step 2: Run Commands
 
+Before sending, verify the pane state. See **"Pre-Send Verification"** in the parent SKILL.md.
+
 ```bash
 # Send a command
 tmux send-keys -t "claude-work:1.1" -l -- 'mix test'

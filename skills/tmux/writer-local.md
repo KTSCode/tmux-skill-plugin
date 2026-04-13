@@ -47,6 +47,8 @@ If you need multiple panes (test runner + server), split again using `-t "$TMUX_
 
 ### Step 3: Run Commands
 
+Before sending, verify the pane state. See **"Pre-Send Verification"** in the parent SKILL.md.
+
 Use `send-keys` with literal mode (`-l`) for safe text delivery. Always append `Enter` separately.
 
 ```bash

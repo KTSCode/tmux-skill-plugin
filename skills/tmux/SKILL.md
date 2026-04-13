@@ -118,6 +118,21 @@ Key points:
 - For wrapper commands (`kubectl exec`, `ssh`, `docker exec`), always use prompt-matching
 - Always scope `-S` to a small number of lines (`-S -3` to `-S -5`) — full buffer md5 is unreliable
 
+### Pre-Send Verification
+
+Before every `send-keys`, capture the last line of the target pane and confirm it shows the expected prompt. REPLs can time out or crash, dropping the pane back to zsh — sending REPL syntax to a shell prompt causes zsh to execute it as shell commands.
+
+```bash
+LAST_LINE=$(tmux capture-pane -t "PANE" -p -S -1)
+```
+
+Check `LAST_LINE` against the expected prompt pattern for the session type:
+- IEx: `^iex\(`
+- Python: `^>>>`
+- Shell: `❯` or `\$\s*$`
+
+**Hard rule: if the prompt doesn't match, STOP. Don't send.** Diagnose what happened — capture more context with `-S -5`, check `pane_current_command`, and restart the REPL if needed.
+
 ### Large Output Flooding
 
 Commands producing hundreds of lines flood the capture buffer.
