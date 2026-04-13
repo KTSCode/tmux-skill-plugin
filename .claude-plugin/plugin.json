@@ -1,5 +1,6 @@
 {
   "name": "tmux-skill",
+  "version": "1.0.0",
   "description": "Control CLI applications running in tmux panes - launch programs, send input, capture output, and manage interactive sessions",
   "author": {
     "name": "Kyle Sanclemente"

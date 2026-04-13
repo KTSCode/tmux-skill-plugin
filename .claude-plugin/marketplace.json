@@ -1,0 +1,17 @@
+{
+  "name": "tmux-skill-plugin",
+  "owner": {
+    "name": "Kyle Sanclemente"
+  },
+  "plugins": [
+    {
+      "name": "tmux-skill",
+      "source": ".",
+      "description": "Control CLI applications running in tmux panes - launch programs, send input, capture output, and manage interactive sessions",
+      "version": "1.0.0",
+      "author": {
+        "name": "Kyle Sanclemente"
+      }
+    }
+  ]
+}
