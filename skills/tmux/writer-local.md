@@ -30,20 +30,17 @@ Choose orientation based on window dimensions:
 - **Landscape** (`width > height * 2.5`): `-h` (vertical split)
 - **Portrait/square**: `-v` (horizontal split)
 
-```bash
-# Split in YOUR window
-tmux split-window -h -t "$TMUX_PANE" "zsh"
-```
-
-Discover the new pane:
+Use `-P -F` to capture the new pane's identity directly from the split:
 
 ```bash
-tmux list-panes -t "$MY_WINDOW" -F '#{pane_index}: cmd=#{pane_current_command} id=#{pane_id} active=#{pane_active}'
+# Split in YOUR window — -P prints the new pane's info
+NEW_PANE=$(tmux split-window -h -t "$TMUX_PANE" -P -F '#{session_name}:#{window_index}.#{pane_index}' "zsh")
+echo "$NEW_PANE"  # e.g., main:2.3
 ```
 
-Save the new pane's full target (e.g., `main:2.3`) for all subsequent commands.
+`$NEW_PANE` is your target for all subsequent commands. Do NOT use `list-panes` to discover the new pane — that requires guessing which pane is new and gets it wrong when multiple panes exist.
 
-If you need multiple panes (test runner + server), split again using `-t "$TMUX_PANE"`.
+If you need multiple panes (test runner + server), split again using `-t "$TMUX_PANE"` with `-P -F` to capture each pane's target.
 
 ### Step 3: Run Commands
 
@@ -126,8 +123,8 @@ fi
 | Action | Command |
 |---|---|
 | Detect location | `tmux display-message -t "$TMUX_PANE" -p '#{session_name}:#{window_index}.#{pane_index}'` |
-| Split horizontal | `tmux split-window -h -t "$TMUX_PANE" "zsh"` |
-| Split vertical | `tmux split-window -v -t "$TMUX_PANE" "zsh"` |
+| Split horizontal | `tmux split-window -h -t "$TMUX_PANE" -P -F '#{session_name}:#{window_index}.#{pane_index}' "zsh"` |
+| Split vertical | `tmux split-window -v -t "$TMUX_PANE" -P -F '#{session_name}:#{window_index}.#{pane_index}' "zsh"` |
 | List panes | `tmux list-panes -t "$MY_WINDOW" -F '#{pane_index}: cmd=#{pane_current_command} id=#{pane_id}'` |
 | Send command | `tmux send-keys -t "PANE" -l -- 'command'` then `tmux send-keys -t "PANE" Enter` |
 | Send Ctrl+C | `tmux send-keys -t "PANE" C-c` |

@@ -24,19 +24,18 @@ tmux send-keys -t "claude-work:1.1" Enter
 
 ### Step 3: Add More Panes/Windows
 
+Use `-P -F` to capture the new pane's identity directly from the split:
+
 ```bash
-# Split the existing pane
-tmux split-window -h -t "claude-work:1.1" "zsh"
+# Split the existing pane — -P prints the new pane's info
+NEW_PANE=$(tmux split-window -h -t "claude-work:1.1" -P -F '#{session_name}:#{window_index}.#{pane_index}' "zsh")
+echo "$NEW_PANE"  # e.g., claude-work:1.2
 
 # Or create a new window
 tmux new-window -t "claude-work" "zsh"
 ```
 
-Discover panes after splitting:
-
-```bash
-tmux list-panes -t "claude-work:1" -F '#{pane_index}: cmd=#{pane_current_command} id=#{pane_id}'
-```
+Do NOT use `list-panes` to discover the new pane — that requires guessing which pane is new and gets it wrong when multiple panes exist.
 
 ### Step 4: Wait and Capture
 
