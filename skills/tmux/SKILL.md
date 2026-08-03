@@ -1,6 +1,8 @@
 ---
 name: tmux
 description: Control CLI applications running in tmux panes - launch programs, send input, capture output, and manage interactive sessions. Use when needing to run commands in separate panes, interact with CLI tools, or execute long-running processes in the background.
+model: sonnet
+effort: high
 ---
 
 # tmux - Pane Management with Raw tmux Commands
@@ -11,8 +13,18 @@ No external dependencies. All commands use raw `tmux` directly.
 
 1. **Read-only request** (watch, read, monitor, check, capture) → read `observer.md`
 2. **Run commands or manage panes:**
-   - `$TMUX` is set (inside tmux) → read `writer-local.md`
-   - `$TMUX` is unset (outside tmux) → read `writer-remote.md`
+   - `$TMUX` set AND `$TMUX_PANE` non-empty → read `writer-local.md`
+   - `$TMUX` set AND `$TMUX_PANE` empty → **background job**: you are not inside an interactive tmux client. `tmux` commands without `-t` (or with `-t ""`) default to whatever pane the user is currently focused on, which is almost always a different window. Refuse to split blind. Either (a) require an explicit `session:window.pane` target supplied by the caller / discovered from `tmux ls`, or (b) fall back to `writer-remote.md` patterns. Never invoke `tmux split-window -t "$TMUX_PANE"` in this state.
+   - `$TMUX` unset → read `writer-remote.md`
+
+Check at the top of every writer flow:
+
+```bash
+if [ -n "$TMUX" ] && [ -z "$TMUX_PANE" ]; then
+  echo "ABORT: \$TMUX set but \$TMUX_PANE empty (background job). Pass explicit -t <session>:<window>.<pane> target."
+  exit 1
+fi
+```
 
 ## Shared Rules (Apply to ALL Modes)
 

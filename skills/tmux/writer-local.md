@@ -2,6 +2,17 @@
 
 Full pane management inside an existing tmux session. `$TMUX_PANE` is your anchor — all targeting flows from it.
 
+## Precondition
+
+```bash
+if [ -z "$TMUX_PANE" ]; then
+  echo "ABORT: \$TMUX_PANE empty. Background Claude jobs inherit \$TMUX but not \$TMUX_PANE — tmux defaults targeting to the user's active pane (wrong window). Use writer-remote.md with an explicit -t target."
+  exit 1
+fi
+```
+
+Do not proceed past this check without a non-empty `$TMUX_PANE`.
+
 ## Workflow
 
 ### Step 1: Detect Your Window
@@ -18,29 +29,30 @@ Build your window target:
 
 ```bash
 MY_WINDOW=$(tmux display-message -t "$TMUX_PANE" -p '#{session_name}:#{window_index}')
+MY_WIN_IDX=$(tmux display-message -t "$TMUX_PANE" -p '#{window_index}')
 ```
 
-### Step 2: Split Your Window
+### Step 2: Create a Helper Window
 
-Always create a new pane via split. Always target `$TMUX_PANE` so the split happens in your window regardless of user focus.
+**Never split inside Claude's window.** Splitting and then killing a sibling pane resizes Claude's pane mid-render (SIGWINCH), producing ghost input frames. Instead, create a new window in the same session.
 
-**Always split with `zsh`** — if you split with a command directly and it errors, the pane closes immediately and you lose all output.
-
-Choose orientation based on window dimensions:
-- **Landscape** (`width > height * 2.5`): `-h` (vertical split)
-- **Portrait/square**: `-v` (horizontal split)
-
-Use `-P -F` to capture the new pane's identity directly from the split:
+Name helper windows with a `[cc]` prefix so the user can identify Claude-driven windows at a glance (e.g., `[cc] mix test`, `[cc] server`).
 
 ```bash
-# Split in YOUR window — -P prints the new pane's info
-NEW_PANE=$(tmux split-window -h -t "$TMUX_PANE" -P -F '#{session_name}:#{window_index}.#{pane_index}' "zsh")
-echo "$NEW_PANE"  # e.g., main:2.3
+# Create helper window — [cc] prefix marks it as Claude-driven
+HELPER_NAME="[cc] mix test"   # use a descriptive label for what's running
+NEW_WIN_IDX=$(tmux new-window -t "$MY_SESSION" -P -F '#{window_index}' -n "$HELPER_NAME" "zsh")
+# Stable pane id — pane index is always 1 in a fresh window
+NEW_ID=$(tmux display-message -t "$MY_SESSION:$NEW_WIN_IDX.1" -p '#{pane_id}')
 ```
 
-`$NEW_PANE` is your target for all subsequent commands. Do NOT use `list-panes` to discover the new pane — that requires guessing which pane is new and gets it wrong when multiple panes exist.
+The helper window is visible in the status bar (prefixed `[cc]`) but doesn't affect Claude's window geometry — no SIGWINCH, no ghost frames.
 
-If you need multiple panes (test runner + server), split again using `-t "$TMUX_PANE"` with `-P -F` to capture each pane's target.
+For multiple helpers (test runner + server), create additional named windows with the same pattern:
+```bash
+NEW_WIN_IDX_2=$(tmux new-window -t "$MY_SESSION" -P -F '#{window_index}' -n "[cc] server" "zsh")
+NEW_ID_2=$(tmux display-message -t "$MY_SESSION:$NEW_WIN_IDX_2.1" -p '#{pane_id}')
+```
 
 ### Step 3: Run Commands
 
@@ -86,35 +98,26 @@ Flags:
 
 ### Step 6: Clean Up
 
-**REQUIRED** — kill every pane you created before finishing.
+**REQUIRED** — kill every helper window you created before finishing.
+
+Kill by window index (not pane), since the whole window is yours:
 
 ```bash
-# Verify the pane is still yours
-tmux capture-pane -t "main:2.3" -p -J -S -20
+# Verify output is from your helper before killing
+tmux capture-pane -t "$NEW_ID" -p -J -S -5
 
-# If output matches what you sent, kill it
-tmux kill-pane -t "main:2.3"
+# Kill the helper window — never kills Claude's window
+tmux kill-window -t "$MY_SESSION:$NEW_WIN_IDX"
 ```
 
-**Self-kill safety**: never kill `$TMUX_PANE` — that's your own pane. Before killing, verify:
+**Self-kill safety**: never kill the window containing `$TMUX_PANE`. Verify:
 
 ```bash
-TARGET="main:2.3"
-if [ "$TARGET" = "$TMUX_PANE" ]; then
-  echo "ERROR: refusing to kill own pane"
+MY_WIN_IDX=$(tmux display-message -t "$TMUX_PANE" -p '#{window_index}')
+if [ "$NEW_WIN_IDX" = "$MY_WIN_IDX" ]; then
+  echo "ERROR: refusing to kill own window"
 else
-  tmux kill-pane -t "$TARGET"
-fi
-```
-
-Note: `$TMUX_PANE` uses the `%N` format (e.g., `%17`), not `session:window.pane`. To compare properly:
-
-```bash
-TARGET_ID=$(tmux display-message -t "main:2.3" -p '#{pane_id}')
-if [ "$TARGET_ID" = "$TMUX_PANE" ]; then
-  echo "ERROR: refusing to kill own pane"
-else
-  tmux kill-pane -t "main:2.3"
+  tmux kill-window -t "$MY_SESSION:$NEW_WIN_IDX"
 fi
 ```
 
@@ -122,12 +125,13 @@ fi
 
 | Action | Command |
 |---|---|
+| Precondition | `[ -z "$TMUX_PANE" ] && { echo "ABORT: bg job, no \$TMUX_PANE"; exit 1; }` |
 | Detect location | `tmux display-message -t "$TMUX_PANE" -p '#{session_name}:#{window_index}.#{pane_index}'` |
-| Split horizontal | `tmux split-window -h -t "$TMUX_PANE" -P -F '#{session_name}:#{window_index}.#{pane_index}' "zsh"` |
-| Split vertical | `tmux split-window -v -t "$TMUX_PANE" -P -F '#{session_name}:#{window_index}.#{pane_index}' "zsh"` |
-| List panes | `tmux list-panes -t "$MY_WINDOW" -F '#{pane_index}: cmd=#{pane_current_command} id=#{pane_id}'` |
-| Send command | `tmux send-keys -t "PANE" -l -- 'command'` then `tmux send-keys -t "PANE" Enter` |
-| Send Ctrl+C | `tmux send-keys -t "PANE" C-c` |
-| Send Escape | `tmux send-keys -t "PANE" Escape` |
-| Capture output | `tmux capture-pane -t "PANE" -p -J -S -500` |
-| Kill pane | `tmux kill-pane -t "PANE"` (verify ownership first) |
+| Create helper window | `NEW_WIN_IDX=$(tmux new-window -t "$MY_SESSION" -P -F '#{window_index}' -n "[cc] label" "zsh")` |
+| Get stable pane id | `NEW_ID=$(tmux display-message -t "$MY_SESSION:$NEW_WIN_IDX.1" -p '#{pane_id}')` |
+| List windows | `tmux list-windows -t "$MY_SESSION" -F '#{window_index}: #{window_name}'` |
+| Send command | `tmux send-keys -t "$NEW_ID" -l -- 'command'` then `tmux send-keys -t "$NEW_ID" Enter` |
+| Send Ctrl+C | `tmux send-keys -t "$NEW_ID" C-c` |
+| Send Escape | `tmux send-keys -t "$NEW_ID" Escape` |
+| Capture output | `tmux capture-pane -t "$NEW_ID" -p -J -S -500` |
+| Kill helper window | `tmux kill-window -t "$MY_SESSION:$NEW_WIN_IDX"` (verify not own window first) |
