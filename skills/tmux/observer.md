@@ -50,5 +50,3 @@ tmux list-panes -t "main:1" -F '#{pane_index}: cmd=#{pane_current_command} id=#{
 # Capture output
 tmux capture-pane -t "main:1.2" -p -J -S -500
 ```
-
-<!-- e2e symlink test -->
